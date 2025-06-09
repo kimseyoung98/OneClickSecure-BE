@@ -1,0 +1,42 @@
+---
+- name: OS별 점검 sh 실행
+  hosts: all
+  become: yes
+  vars:
+    script_path: "{{ script_path }}"
+    host_id: "{{ host_id | default(inventory_hostname) }}"
+    username: "{{ username }}"
+
+  tasks:
+    - name: 점검 sh 실행
+      ansible.builtin.script: "{{ script_path }}"
+      args:
+        executable: /bin/bash
+      environment:
+        HOST_ID: "{{ host_id }}"
+        USERNAME: "{{ username }}"
+      register: check_result
+
+    - name: 점검 결과만 출력
+      debug:
+        msg: "{{ check_result.stdout }}"
+
+    - name: 변수 값 확인
+      debug:
+        msg: "host_id: {{ host_id }}, username: {{ username }}"
+
+    - name: 결과 파일 찾기 (가장 최근 파일)
+      shell: ls -t /tmp/Results_{{ host_id }}_{{ username }}_*.txt | head -n 1
+      register: result_file_path
+      changed_when: false
+
+    - name: 결과 파일 경로 확인
+      debug:
+        msg: "{{ result_file_path.stdout }}"
+
+    - name: 결과 파일 가져오기
+      fetch:
+        src: "{{ result_file_path.stdout }}"
+        dest: "./collected_results/"
+        flat: yes
+      when: result_file_path.stdout | length > 0
